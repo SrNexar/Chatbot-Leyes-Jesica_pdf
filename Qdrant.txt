@@ -1,0 +1,15 @@
+from qdrant_client import QdrantClient
+
+qdrant_client = QdrantClient(
+    url="https://ad73ca69-9c86-4a07-bd39-7686f369cdc6.us-east4-0.gcp.cloud.qdrant.io:6333", 
+    api_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.YQ55_0lnRnUedSQ7qlvmAchwQbbqYWtudAqu8L7sPeQ",
+)
+
+print(qdrant_client.get_collections())
+
+
+//eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.mQVonEH2kBBleMb6IXOK1KdK-tyYgEwldPT5g6ppQ5I
+
+https://04441c7c-9ca6-4b16-ac96-ba1cba26e1dd.europe-west3-0.gcp.cloud.qdrant.io
+
+https://node-0-04441c7c-9ca6-4b16-ac96-ba1cba26e1dd.europe-west3-0.gcp.cloud.qdrant.io

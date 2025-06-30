@@ -1,0 +1,14 @@
+qdrant-client[fastembed]
+fastapi
+uvicorn 
+python-docx
+openai
+python-dotenv
+sentence-transformers
+python-multipart
+openpyxl
+PyMuPDF
+requests
+pathlib
+pytz
+
