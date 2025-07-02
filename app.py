@@ -42,7 +42,7 @@ qdrant_client = QdrantClient(
 
 # === Constantes de la app ===
 UPLOAD_FOLDER = "docs_upload"
-COLLECTION_NAME = "documentos_legales_qdrant"  # Nombre más genérico
+COLLECTION_NAME = "documentos_legales_qdrant_jess"  # Nombre más genérico
 CHUNK_SIZE = 800  # Aumentado para mejor contexto
 OVERLAP_SIZE = 200  # Superposición entre chunks para mejor coherencia
 MODEL_DIM = 384
