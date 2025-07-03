@@ -64,3 +64,10 @@ instance/
 *.log
 docker-compose.override.yml
 .env
+
+# Archivos específicos del proyecto
+docs_upload/
+*.pdf
+registro_chat.xlsx
+app_limpio.py
+*.log
