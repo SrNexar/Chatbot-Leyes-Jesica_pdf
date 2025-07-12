@@ -1,0 +1,26 @@
+{
+  "parte_policial": {
+    "numero_parte": "PP-2022-001247-DNPC"
+  },
+  "aprehendido": {
+    "nombre": "Juan Pérez García",
+    "cedula": "0912345678",
+    "edad": "28",
+    "estado_civil": "Soltero",
+    "ocupacion": "Comerciante"
+  },
+  "procedimiento": {
+    "motivo_aprehension": "Hurto calificado en establecimiento comercial",
+    "descripcion_detallada": "El procesado fue sorprendido sustrayendo mercadería de un local comercial por valor de $350 USD, utilizando herramientas para forzar la cerradura del establecimiento",
+    "articulos_legales": ["Art. 196 COIP", "Art. 197 COIP"]
+  },
+  "caso": {
+    "fecha_hecho": "2022-05-10",
+    "direccion_evento": "Av. 9 de Octubre y García Moreno, Centro Comercial El Dorado",
+    "circunstancias": "Hurto nocturno en establecimiento comercial con forzamiento de cerraduras"
+  },
+  "observaciones": {
+    "comportamiento": "Nervioso y evasivo durante la aprehensión",
+    "condiciones_aprehension": "Flagrancia, sorprendido in situ con la mercadería sustraída"
+  }
+}
