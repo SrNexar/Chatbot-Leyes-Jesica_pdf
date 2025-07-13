@@ -9,7 +9,7 @@ import fitz  # PyMuPDF
 
 # === Configuración ===
 UPLOAD_FOLDER = "docs_upload"
-COLLECTION_NAME = "Código de la Niñez"
+COLLECTION_NAME = "COIP_Documentos"
 CHUNK_SIZE = 800
 OVERLAP_SIZE = 200
 BATCH_SIZE = 50
