@@ -1,0 +1,14 @@
+Chatbot-Leyes-Jesica_pdf/
+│
+├── main.py
+├── requirementsMongo.txt
+├── .env
+│
+├── config/
+│   └── mongo.py
+│
+├── routes/
+│   └── caso.py
+│
+└── schemas/
+    └── caso.py
