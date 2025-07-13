@@ -28,6 +28,7 @@ async def listar_casos():
         cursor = mongo.db.caso.find()
         async for c in cursor:
             c["id"] = str(c["_id"])
+            del c["_id"]
             casos.append(c)
         return casos
     except Exception as e:
