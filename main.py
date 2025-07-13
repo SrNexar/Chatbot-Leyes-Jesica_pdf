@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from routes import caso
+from routes import casoMongo, caso
 from config.mongo import connect_db
 import logging
 
@@ -11,4 +11,7 @@ async def startup():
     logging.info("Servidor iniciado y DB conectada")
 
 # Ruta para CRUD MongoDB (casos)
+app.include_router(casoMongo.router)
+
+# Ruta para el chatbot (caso)
 app.include_router(caso.router)
