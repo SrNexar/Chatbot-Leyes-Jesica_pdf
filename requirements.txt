@@ -12,4 +12,6 @@ requests
 pathlib
 pytz
 openai==0.28
+motor
+groq
 
