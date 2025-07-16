@@ -1,6 +1,6 @@
 import os
 from typing import List, Tuple
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, APIRouter
 from sentence_transformers import SentenceTransformer
 from qdrant_client import QdrantClient
 from qdrant_client.models import VectorParams, Distance, PointStruct
@@ -24,11 +24,11 @@ if not QDRANT_URL or not QDRANT_API_KEY:
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+router = APIRouter(prefix="/documento", tags=["documento"])
+
 # === Inicialización de servicios ===
 model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
-
-app = FastAPI()
 
 # === Utilidades ===
 
@@ -91,7 +91,7 @@ def embed_and_store(chunks: List[str]):
 
 # === Endpoint ===
 
-@app.post("/documento/subir", summary="Sube un documento .pdf o .docx y lo indexa en Qdrant")
+@router.post("/subir", summary="Sube un documento .pdf o .docx y lo indexa en Qdrant")
 async def subir_documento(file: UploadFile = File(...)):
     ext = file.filename.lower().split(".")[-1]
     if ext not in ("pdf", "docx"):
