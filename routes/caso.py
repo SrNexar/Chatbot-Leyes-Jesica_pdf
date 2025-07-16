@@ -9,6 +9,7 @@ from datetime import datetime
 from bson import ObjectId
 import config.mongo as mongo
 import openai
+import re
 
 # === Cargar variables de entorno ===
 load_dotenv()
@@ -226,13 +227,24 @@ async def consultar_chat_openai_con_caso(id: str):
             temperature=0.2,
             max_tokens=1500
         )
-
         texto_respuesta = response.choices[0].message.content.strip()
+
+        # Extraer campos y guardar en la colección
+        campos = extraer_campos_respuesta(texto_respuesta)
+
+        sentencia = {
+            "caso_id": ObjectId(id),
+            **campos,
+            "fecha_creacion": datetime.now()
+        }
+
+        await mongo.db.sentencia.insert_one(sentencia)
+
+        # Retornar la respuesta como resumen
         return {"respuesta": texto_respuesta}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al generar la respuesta: {str(e)}")
-
 
 # === Construcción del prompt ===
 def construir_prompt(contexto: str, pregunta: str, tipo_documento: dict, tiene_contexto_relevante: bool = True) -> str:
@@ -293,3 +305,28 @@ CASO PRESENTADO:
 {pregunta}
 
 ⚠️ ADVERTENCIA JUDICIAL: Sentencia no definitiva por falta de marco legal específico."""
+
+
+def extraer_campos_respuesta(respuesta: str) -> dict:
+    iconos_campos = {
+        "📅 FECHA Y HORA:": "fecha_hora",
+        "⚖️ RAZÓN DE LA SENTENCIA:": "razon_sentencia",
+        "🏛️ VEREDICTO:": "veredicto",
+        "🏢 LUGAR DE RECLUSIÓN:": "lugar_reclusion",
+        "📋 CONCLUSIÓN:": "conclusion"
+    }
+
+    partes = re.split(r'(📅 FECHA Y HORA:|⚖️ RAZÓN DE LA SENTENCIA:|🏛️ VEREDICTO:|🏢 LUGAR DE RECLUSIÓN:|📋 CONCLUSIÓN:)', respuesta)
+    
+    resultado = {}
+    clave_actual = None
+
+    for parte in partes:
+        parte = parte.strip()
+        if parte in iconos_campos:
+            clave_actual = iconos_campos[parte]
+            resultado[clave_actual] = ""
+        elif clave_actual:
+            resultado[clave_actual] += parte.strip() + " "
+
+    return {k: v.strip() for k, v in resultado.items()}
