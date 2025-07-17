@@ -64,6 +64,7 @@ async def listar_casos():
         
         async for c in cursor:
             c["id"] = str(c["_id"])
+            del c["_id"]
             casos.append(c)
         
         return casos
