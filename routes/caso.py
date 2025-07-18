@@ -10,6 +10,7 @@ from bson import ObjectId
 import config.mongo as mongo
 import openai
 import re
+import logging
 
 # === Cargar variables de entorno ===
 load_dotenv()
@@ -172,52 +173,68 @@ async def consultar_chat_con_caso(id: str):
 # === ************************************************************************** ===
 # === Endpoint para consultar al chatbot OPENAI===
 
-@router.post("/caso/{id}", summary="Consultar chatbot OpenAI con transcripciones de un caso guardado")
-async def consultar_chat_openai_con_caso(id: str):
+@router.post("/chatcaso/{id_alerta}", summary="Consultar chatbot OpenAI con transcripciones de dos colecciones distintas")
+async def consultar_chat_openai_con_caso(id_alerta: str):
     try:
-        # Verificar conexión a la DB
         if mongo.db is None:
             raise HTTPException(status_code=500, detail="DB no conectada")
 
-        # Buscar el caso en MongoDB
-        caso = await mongo.db.caso.find_one({"_id": ObjectId(id)})
+        caso = await mongo.db.alertas2.find_one({"_id": ObjectId(id_alerta)})
         if not caso:
-            raise HTTPException(status_code=404, detail="Caso no encontrado")
+            raise HTTPException(status_code=404, detail="Alerta no encontrada")
 
-        # Obtener transcripciones
-        transcripcion_video = caso.get("transcripción_de_video", "")
-        transcripcion_audio = caso.get("transcripción_de_audio", "")
+        transcripcion = caso.get("descripcion", "")
 
-        if not transcripcion_video and not transcripcion_audio:
+        if not transcripcion and not transcripcion:
             raise HTTPException(status_code=400, detail="El caso no tiene transcripciones para analizar")
+        prompt_ampliacion = f"""
+Eres un asistente de seguridad de Ecuador encargado de generar un reporte detallado y coherente basado en la siguiente información:
 
-        # Concatenar transcripciones para formar la pregunta completa
-        pregunta = f"{transcripcion_video}\n\n{transcripcion_audio}"
+- Transcripción de video: "{transcripcion}"
 
-        # Detectar colección y tipo documento basado en la pregunta
+
+A partir de esta información, crea una descripción ampliada y realista del incidente captado en el video, imaginando un contexto plausible que ayude a comprender la situación con mayor profundidad. Describe el entorno, el comportamiento y las emociones de las personas involucradas, así como las acciones específicas (por ejemplo, agresiones físicas como golpes, uso de objetos, o amenazas) y las posibles consecuencias visibles.
+
+No inventes hechos imposibles ni exageres sin fundamento, pero sí agrega detalles que enriquezcan el análisis, como el escenario donde ocurre el hecho, movimientos, objetos usados y reacciones.
+
+La descripción debe servir para un análisis de seguridad efectivo y debe reflejar un escenario creíble basado en la información dada.
+"""
+
+
+        ampliacion_response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "Eres un asistente que amplía transcripciones breves para crear un contexto útil."},
+                {"role": "user", "content": prompt_ampliacion}
+            ],
+            temperature=0.7,
+            max_tokens=500
+        )
+
+        texto_ampliado = ampliacion_response.choices[0].message.content.strip()
+
+        # Usar el texto ampliado como la pregunta para el análisis posterior
+        pregunta = texto_ampliado
+
+
+        # Detectar colección y tipo documento basado en la pregunta ampliada
         coleccion, tipo_documento = detectar_coleccion_y_datos(pregunta)
 
         if coleccion is None:
-            # Sin contexto legal relevante
             prompt = construir_prompt("", pregunta, tipo_documento, tiene_contexto_relevante=False)
         else:
-            # Obtener vector para búsqueda semántica
             vector_pregunta = model_embeddings.encode([pregunta])[0]
-
-            # Buscar contexto relevante en Qdrant
             resultados = qdrant_client.search(
                 collection_name=coleccion,
                 query_vector=vector_pregunta,
                 limit=4
             )
-
             if not resultados:
                 prompt = construir_prompt("", pregunta, tipo_documento, tiene_contexto_relevante=False)
             else:
                 contexto = "\n\n".join([r.payload.get("text", "") for r in resultados])
                 prompt = construir_prompt(contexto, pregunta, tipo_documento)
 
-        # Llamada al modelo OpenAI
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
@@ -228,23 +245,31 @@ async def consultar_chat_openai_con_caso(id: str):
             max_tokens=1500
         )
         texto_respuesta = response.choices[0].message.content.strip()
+        try:
+            logging.info(texto_ampliado)
+        except Exception as e:
+            logging.error(f"Error: {e}")
+        campos = extraer_campos_respuesta(texto_respuesta, texto_ampliado)
 
-        # Extraer campos y guardar en la colección
-        campos = extraer_campos_respuesta(texto_respuesta)
 
-        sentencia = {
-            "caso_id": ObjectId(id),
+        notificacion = {
+            "caso_id": ObjectId(id_alerta),
             **campos,
             "fecha_creacion": datetime.now()
         }
 
-        await mongo.db.sentencia.insert_one(sentencia)
+        await mongo.db.notificacion.insert_one(notificacion)
 
-        # Retornar la respuesta como resumen
-        return {"respuesta": texto_respuesta}
+        return {
+    "respuesta": texto_respuesta,
+    "texto_ampliado": texto_ampliado
+}
+
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al generar la respuesta: {str(e)}")
+
+
 
 # === Construcción del prompt ===
 def construir_prompt(contexto: str, pregunta: str, tipo_documento: dict, tiene_contexto_relevante: bool = True) -> str:
@@ -307,7 +332,9 @@ CASO PRESENTADO:
 ⚠️ ADVERTENCIA JUDICIAL: Sentencia no definitiva por falta de marco legal específico."""
 
 
-def extraer_campos_respuesta(respuesta: str) -> dict:
+def extraer_campos_respuesta(respuesta: str, texto_ampliado: str) -> dict:
+    import re  # Asegúrate de importar re si no lo has hecho
+    
     iconos_campos = {
         "📅 FECHA Y HORA:": "fecha_hora",
         "⚖️ RAZÓN DE LA SENTENCIA:": "razon_sentencia",
@@ -318,7 +345,7 @@ def extraer_campos_respuesta(respuesta: str) -> dict:
 
     partes = re.split(r'(📅 FECHA Y HORA:|⚖️ RAZÓN DE LA SENTENCIA:|🏛️ VEREDICTO:|🏢 LUGAR DE RECLUSIÓN:|📋 CONCLUSIÓN:)', respuesta)
     
-    resultado = {}
+    resultado = {"texto_ampliado": texto_ampliado.strip()}
     clave_actual = None
 
     for parte in partes:
