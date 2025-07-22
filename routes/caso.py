@@ -57,6 +57,32 @@ if not QDRANT_URL or not QDRANT_API_KEY:
 # === Inicializar FastAPI ===
 router = APIRouter(prefix="/chatbot", tags=["chatbot"])
 
+# === Endpoint para listar casos disponibles ===
+@router.get("/casos", summary="Listar todos los casos disponibles con sus IDs")
+async def listar_casos_disponibles():
+    """Obtiene todos los casos de la colección alertas2 con sus IDs para usar en el chatbot"""
+    try:
+        if mongo.db is None:
+            raise HTTPException(status_code=500, detail="DB no conectada")
+
+        casos = []
+        cursor = mongo.db.alertas2.find({}, {"_id": 1, "alerta": 1, "descripcion": 1})
+        async for caso in cursor:
+            casos.append({
+                "id": str(caso["_id"]),
+                "alerta": caso.get("alerta", "Sin alerta"),
+                "descripcion": caso.get("descripcion", "Sin descripción")[:100] + "..." if len(caso.get("descripcion", "")) > 100 else caso.get("descripcion", "Sin descripción")
+            })
+        
+        return {
+            "total_casos": len(casos),
+            "casos": casos
+        }
+    
+    except Exception as e:
+        logging.error(f"Error listando casos: {e}")
+        raise HTTPException(status_code=500, detail=f"Error al listar casos: {str(e)}")
+
 # === Inicializar modelo de embeddings y cliente Qdrant ===
 model_embeddings = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 qdrant_client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
@@ -179,7 +205,20 @@ async def consultar_chat_openai_con_caso(id_alerta: str):
         if mongo.db is None:
             raise HTTPException(status_code=500, detail="DB no conectada")
 
-        caso = await mongo.db.alertas2.find_one({"_id": ObjectId(id_alerta)})
+        # Limpiar y validar el ID
+        id_alerta_limpio = id_alerta.strip().replace('\n', '').replace('\r', '')
+        
+        # Validar que el ID tenga el formato correcto (24 caracteres hexadecimales)
+        if len(id_alerta_limpio) != 24:
+            raise HTTPException(status_code=400, detail=f"ID inválido: debe tener 24 caracteres, recibido {len(id_alerta_limpio)} caracteres")
+        
+        # Validar que sean caracteres hexadecimales
+        try:
+            int(id_alerta_limpio, 16)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="ID inválido: debe contener solo caracteres hexadecimales (0-9, a-f)")
+
+        caso = await mongo.db.alertas2.find_one({"_id": ObjectId(id_alerta_limpio)})
         if not caso:
             raise HTTPException(status_code=404, detail="Alerta no encontrada")
 
@@ -253,7 +292,7 @@ La descripción debe servir para un análisis de seguridad efectivo y debe refle
 
 
         notificacion = {
-            "caso_id": ObjectId(id_alerta),
+            "caso_id": ObjectId(id_alerta_limpio),
             **campos,
             "fecha_creacion": datetime.now()
         }
