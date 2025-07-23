@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from routes import CasoMongoAlerta, Caso, SubirDocumento, CasoNotificacion 
+from routes import CasoMongoAlerta, caso, SubirDocumento, CasoNotificacion 
 from config.mongo import connect_db
 import logging
 
@@ -14,7 +14,7 @@ async def startup():
 app.include_router(CasoMongoAlerta.router)
 
 # Ruta para el chatbot (caso)
-app.include_router(Caso.router)
+app.include_router(caso.router)
 
 # Ruta para subir la documentación 
 app.include_router(SubirDocumento.router)
